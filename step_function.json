@@ -1,0 +1,217 @@
+{
+  "Comment": "EMR job - Parallel Spark, Crawlers, and Athena Query",
+  "StartAt": "Parallel Spark Jobs",
+  "States": {
+    "Parallel Spark Jobs": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "Run Vehicle Metrics Job",
+          "States": {
+            "Run Vehicle Metrics Job": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::aws-sdk:emrserverless:startJobRun",
+              "Parameters": {
+                "ClientToken.$": "States.UUID()",
+                "ApplicationId": "00ftgd0e3vbctm09",
+                "ExecutionRoleArn": "arn:aws:iam::814724283777:role/service-role/AmazonEMR-ExecutionRole-1750673448651",
+                "JobDriver": {
+                  "SparkSubmit": {
+                    "EntryPoint": "s3://emr.job.script/vehicle_location_metrics.py",
+                    "EntryPointArguments": [
+                      "--vehicles_path",
+                      "s3://emr.rawdata/vehicles/",
+                      "--locations_path",
+                      "s3://emr.rawdata/locations/",
+                      "--transactions_path",
+                      "s3://emr.rawdata/rental_transactions/",
+                      "--output_path",
+                      "s3://emr.processed/job1/"
+                    ]
+                  }
+                },
+                "ConfigurationOverrides": {
+                  "MonitoringConfiguration": {
+                    "S3MonitoringConfiguration": {
+                      "LogUri": "s3://emr.processed/logs/"
+                    }
+                  }
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "States.ALL"
+                  ],
+                  "IntervalSeconds": 30,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "States.ALL"
+                  ],
+                  "ResultPath": "$.error",
+                  "Next": "Vehicle Metrics Job Failed"
+                }
+              ],
+              "End": true
+            },
+            "Vehicle Metrics Job Failed": {
+              "Type": "Fail",
+              "Error": "VehicleJobFailed",
+              "Cause": "Vehicle metrics Spark job failed."
+            }
+          }
+        },
+        {
+          "StartAt": "Run User Metrics Job",
+          "States": {
+            "Run User Metrics Job": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::aws-sdk:emrserverless:startJobRun",
+              "Parameters": {
+                "ClientToken.$": "States.UUID()",
+                "ApplicationId": "00ftgd0e3vbctm09",
+                "ExecutionRoleArn": "arn:aws:iam::814724283777:role/service-role/AmazonEMR-ExecutionRole-1750673448651",
+                "JobDriver": {
+                  "SparkSubmit": {
+                    "EntryPoint": "s3://emr.job.script/user_transaction_metrics.py",
+                    "EntryPointArguments": [
+                      "--users_path",
+                      "s3://emr.rawdata/users/",
+                      "--transactions_path",
+                      "s3://emr.rawdata/rental_transactions/",
+                      "--output_path",
+                      "s3://emr.processed/job2/"
+                    ]
+                  }
+                },
+                "ConfigurationOverrides": {
+                  "MonitoringConfiguration": {
+                    "S3MonitoringConfiguration": {
+                      "LogUri": "s3://emr.processed/logs/"
+                    }
+                  }
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "States.ALL"
+                  ],
+                  "IntervalSeconds": 30,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "States.ALL"
+                  ],
+                  "ResultPath": "$.error",
+                  "Next": "User Metrics Job Failed"
+                }
+              ],
+              "End": true
+            },
+            "User Metrics Job Failed": {
+              "Type": "Fail",
+              "Error": "UserJobFailed",
+              "Cause": "User metrics Spark job failed."
+            }
+          }
+        }
+      ],
+      "Next": "Parallel Glue Crawlers"
+    },
+    "Parallel Glue Crawlers": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "Run Daily Crawler",
+          "States": {
+            "Run Daily Crawler": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::aws-sdk:glue:startCrawler",
+              "Parameters": {
+                "Name": "dailyCrawler"
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Run Location Metric Crawler",
+          "States": {
+            "Run Location Metric Crawler": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::aws-sdk:glue:startCrawler",
+              "Parameters": {
+                "Name": "location_metric"
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Run User Crawler",
+          "States": {
+            "Run User Crawler": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::aws-sdk:glue:startCrawler",
+              "Parameters": {
+                "Name": "userCrawler"
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Run Vehicle Metrics Crawler",
+          "States": {
+            "Run Vehicle Metrics Crawler": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::aws-sdk:glue:startCrawler",
+              "Parameters": {
+                "Name": "vehicle_metrics"
+              },
+              "End": true
+            }
+          }
+        }
+      ],
+      "Next": "Athena Generate Summary Report"
+    },
+    "Athena Generate Summary Report": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:athena:startQueryExecution",
+      "Parameters": {
+        "QueryString": "SELECT rental_date, revenue_per_day FROM emr_job.daily_transaction_metrics limit 10;",
+        "QueryExecutionContext": {
+          "Database": "emr_job"
+        },
+        "ResultConfiguration": {
+          "OutputLocation": "s3://query.output/"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "IntervalSeconds": 15,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Success State"
+    },
+    "Success State": {
+      "Type": "Succeed"
+    }
+  }
+}

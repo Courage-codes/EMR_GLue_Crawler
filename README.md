@@ -25,7 +25,7 @@ This project processes vehicle rental data to generate performance metrics and a
   - Access S3 buckets for input, output, logs, and scripts.
 - AWS CLI configured with appropriate credentials.
 - Input data in CSV format in the specified S3 paths.
-- AWS Glue crawlers (`dailyCrawler`, `location_metric`, `userCrawler`, `vehicle_metrics`) set up to catalog output data.
+- AWS Glue crawlers (`dailyCrawler`, `location_metric`, `userCrawler`, `vehicle_metrics`) are set up to catalog output data.
 - Athena database `emr_job` configured.
 
 ## Setup

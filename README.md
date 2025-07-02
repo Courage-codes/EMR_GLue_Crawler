@@ -103,4 +103,4 @@ The workflow is defined in `step_function.json` and executed via AWS Step Functi
 - **Spark Job Failures**: Check logs in `s3://emr.processed/logs/` for errors related to data schema or S3 permissions.
 - **Glue Crawler Issues**: Verify crawler configurations and ensure output Parquet files are correctly formatted.
 - **Athena Query Failures**: Confirm the `emr_job` database and tables exist and are accessible.
-- **Step Function Errors**: Review the execution history in the Step Functions console for detailed error messages...
+- **Step Function Errors**: Review the execution history in the Step Functions console for detailed error messages.

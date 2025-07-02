@@ -3,7 +3,7 @@
 ## Overview
 This project processes vehicle rental data to generate performance metrics and analytics using Apache Spark on AWS EMR Serverless, AWS Glue, and AWS Athena. It consists of two main Spark jobs that process vehicle, location, and user transaction data, followed by Glue crawlers to catalog the data and an Athena query to generate a summary report. The workflow is orchestrated using AWS Step Functions.
 
-![Architecture Diagram](./images/architectur.svg)
+![Architecture Diagram](./images/architecture.svg)
 
 ## Project Structure
 - **Scripts**:
